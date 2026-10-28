@@ -1,0 +1,38 @@
+# /etc/systemd/system/agent-gateway.service
+#
+#   sudo cp deploy/agent-gateway.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now agent-gateway
+#   journalctl -u agent-gateway -f
+#
+# Adjust User / WorkingDirectory / paths to where you put the project.
+
+[Unit]
+Description=Agent Memory Gateway (FastAPI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/agent-gateway
+EnvironmentFile=/opt/agent-gateway/.env
+ExecStart=/opt/agent-gateway/venv/bin/uvicorn app.main:app \
+    --host 127.0.0.1 --port 8000 \
+    --workers 1 --limit-concurrency 32 --no-access-log
+Restart=always
+RestartSec=5
+
+# ---- Hard memory ceiling: the service is throttled at 250M and killed at 300M
+MemoryHigh=250M
+MemoryMax=300M
+
+# ---- Basic sandboxing
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/opt/agent-gateway
+
+[Install]
+WantedBy=multi-user.target
