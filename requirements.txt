@@ -1,0 +1,5 @@
+# Deliberately tiny dependency set (no numpy, no ML libs, no scrapers).
+# Typical idle RSS of the whole gateway: ~45-70 MB.
+fastapi>=0.115
+uvicorn>=0.32
+httpx>=0.27
