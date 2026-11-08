@@ -32,7 +32,7 @@ MemoryMax=400M
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ProtectHome=true
+ProtectHome=read-only
 ReadOnlyPaths=/opt/agent-gateway
 
 [Install]
