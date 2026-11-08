@@ -41,11 +41,17 @@ class Settings:
     # --- Vectors -------------------------------------------------------
     embed_dim: int
     use_vector_index: bool
-    # --- Web search ----------------------------------------------------
+    # --- Web search / ingest ------------------------------------------
     web_timeout: float
     web_max_page_bytes: int
-    web_max_page_chars: int
+    web_max_page_chars: int     # per-page text kept in /search_web results
     brave_api_key: str | None   # optional: more reliable than scraping DDG
+    pdf_max_bytes: int          # PDFs bigger than this are skipped (RAM guard)
+    pdf_max_pages: int
+    ingest_max_chars: int       # max text taken from ONE url in /ingest/prepare
+    research_page_chars: int    # max text taken from ONE page in /research
+    chunk_chars: int            # default chunk size
+    chunk_overlap: int
     # --- Misc ----------------------------------------------------------
     enable_docs: bool
     max_body_bytes: int
@@ -80,13 +86,19 @@ def get_settings() -> Settings:
         turso_url=url,
         turso_token=token,
         api_key=api_key,
-        embed_dim=int(os.getenv("EMBED_DIM", "384")),
+        embed_dim=int(os.getenv("EMBED_DIM", "768")),
         use_vector_index=_bool("USE_VECTOR_INDEX", False),
         web_timeout=float(os.getenv("WEB_TIMEOUT_SECONDS", "8")),
         web_max_page_bytes=int(os.getenv("WEB_MAX_PAGE_BYTES", "400000")),
         web_max_page_chars=int(os.getenv("WEB_MAX_PAGE_CHARS", "4000")),
         brave_api_key=os.getenv("BRAVE_API_KEY", "").strip() or None,
+        pdf_max_bytes=int(os.getenv("PDF_MAX_BYTES", "6000000")),
+        pdf_max_pages=int(os.getenv("PDF_MAX_PAGES", "80")),
+        ingest_max_chars=int(os.getenv("INGEST_MAX_CHARS", "150000")),
+        research_page_chars=int(os.getenv("RESEARCH_PAGE_CHARS", "12000")),
+        chunk_chars=int(os.getenv("CHUNK_CHARS", "1200")),
+        chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "150")),
         enable_docs=_bool("ENABLE_DOCS", False),
-        max_body_bytes=int(os.getenv("MAX_BODY_BYTES", str(1_000_000))),
+        max_body_bytes=int(os.getenv("MAX_BODY_BYTES", str(2_000_000))),
         schema_path=Path(os.getenv("SCHEMA_PATH", str(PROJECT_ROOT / "schema.sql"))),
     )

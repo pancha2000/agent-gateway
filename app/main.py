@@ -1,15 +1,24 @@
 """
-Local Multi-Agent Framework - VPS gateway.
+Local Multi-Agent Framework - VPS gateway (v2).
 
 Run (single worker, no reload; this is what keeps RAM low):
     uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1 --limit-concurrency 32
 
-Endpoints (all require the X-API-Key header, except /health):
-    POST /save_memory   text + metadata + vector  -> Turso
-    POST /get_hint      query vector              -> top-k snippets (+ past mistakes)
-    POST /error_log     Reflexion error tracking
-    POST /search_web    DuckDuckGo / Brave search (+ optional page text)
-    GET  /health        liveness + current RSS (to verify the memory budget)
+All endpoints need the X-API-Key header, except /health.
+
+  Memory     POST /save_memory        one text + vector            -> Turso
+             POST /save_memory_batch  up to 40 chunks (+ document record)
+             POST /get_hint           query vector -> top-k hits (+ past mistakes), scope-aware
+             GET  /recall/{id}        full text (and chunks) of one memory
+             DELETE /memory/{id}      delete a memory and its chunks
+             GET  /stats              counts per scope/kind
+  Learning   POST /error_log          Reflexion error tracking (attempts, repeats)
+             POST /error_log/{id}/resolve
+             POST /escalation_package one markdown brief for Claude/Gemini or a .txt
+  Web        POST /search_web         DuckDuckGo / Brave search (+ optional page text)
+             POST /ingest/prepare     URL / PDF / raw text -> clean chunks (nothing stored)
+             POST /research           memory first, then web; returns chunks to embed
+  Ops        GET  /health             liveness, RSS and EMBED_DIM
 """
 from __future__ import annotations
 
@@ -24,12 +33,14 @@ from fastapi.responses import JSONResponse
 
 from . import repo
 from .config import get_settings
-from .routers import errors, memory, web
+from .routers import errors, escalate, ingest, memory, research, web
 from .turso import Turso, TursoError
 from .websearch import SearchError, TTLCache
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("gateway")
+
+VERSION = "2.0.0"
 
 
 def _rss_mb() -> float | None:
@@ -77,7 +88,7 @@ def create_app(
 
     # Swagger/ReDoc/OpenAPI are disabled by default: less RAM, smaller attack surface.
     docs = {} if settings.enable_docs else {"docs_url": None, "redoc_url": None, "openapi_url": None}
-    app = FastAPI(title="Agent Memory Gateway", version="1.0.0", lifespan=lifespan, **docs)
+    app = FastAPI(title="Agent Memory Gateway", version=VERSION, lifespan=lifespan, **docs)
 
     @app.middleware("http")
     async def limit_body_size(request: Request, call_next):
@@ -99,10 +110,13 @@ def create_app(
     app.include_router(memory.router)
     app.include_router(errors.router)
     app.include_router(web.router)
+    app.include_router(ingest.router)
+    app.include_router(research.router)
+    app.include_router(escalate.router)
 
     @app.get("/health")
     async def health():
-        return {"status": "ok", "rss_mb": _rss_mb()}
+        return {"status": "ok", "rss_mb": _rss_mb(), "embed_dim": settings.embed_dim, "version": VERSION}
 
     return app
 
