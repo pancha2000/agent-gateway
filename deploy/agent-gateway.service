@@ -23,9 +23,10 @@ ExecStart=/opt/agent-gateway/venv/bin/uvicorn app.main:app \
 Restart=always
 RestartSec=5
 
-# ---- Hard memory ceiling: the service is throttled at 250M and killed at 300M
-MemoryHigh=250M
-MemoryMax=300M
+# ---- Hard memory ceiling: throttled at 300M, killed at 400M (PDF parsing needs some headroom).
+# On a 1 GB box keep a 1-2 GB swap file as insurance.
+MemoryHigh=300M
+MemoryMax=400M
 
 # ---- Basic sandboxing
 NoNewPrivileges=true
