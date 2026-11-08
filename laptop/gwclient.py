@@ -338,7 +338,9 @@ def connect() -> Gateway:
     url, key = os.getenv("GATEWAY_URL", ""), os.getenv("GATEWAY_API_KEY", "")
     if not url or not key:
         raise GatewayError("set GATEWAY_URL and GATEWAY_API_KEY (see laptop/.env.example)")
-    emb = Embedder(os.getenv("OLLAMA_URL", "http://127.0.0.1:11434"),
+    # EMBED_OLLAMA_URL = a separate (CPU-only) Ollama instance just for embeddings, so the chat
+    # model never has to be unloaded to make room for the embedding model.
+    emb = Embedder(os.getenv("EMBED_OLLAMA_URL") or os.getenv("OLLAMA_URL", "http://127.0.0.1:11434"),
                    os.getenv("EMBED_MODEL", "nomic-embed-text"),
                    on_cpu=os.getenv("EMBED_ON_CPU", "1") != "0")
     return Gateway(

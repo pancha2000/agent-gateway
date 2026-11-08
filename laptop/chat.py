@@ -13,6 +13,8 @@ Optional .env settings
   NO_THINK_SWITCH=1    when THINK=0 also append Qwen3's /no_think soft switch (harmless if already off)
   KEEP_ALIVE=30m       keep the model loaded in VRAM between messages (no reload delay)
   NUM_CTX=4096         context size. Smaller = less VRAM = fewer layers pushed to the slow CPU
+  NUM_GPU=33           force this many model layers onto the GPU (Qwen3-8B has 37 in total).
+                       Leave it unset to let Ollama decide. Too high = CUDA out-of-memory error.
 
 Commands
   /ask <question>            memory first, else the VPS searches the web (new chunks are stored), then answer
@@ -62,9 +64,12 @@ def _visible(acc: str) -> str:
 def chat(model: str, messages: list[dict], num_ctx: int, think: bool) -> str:
     """Stream the answer to the terminal and return it."""
     url = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
+    options: dict = {"num_ctx": num_ctx}
+    if os.getenv("NUM_GPU", "").strip():
+        options["num_gpu"] = int(os.environ["NUM_GPU"])
     payload = {
         "model": model, "messages": messages, "stream": True, "think": think,
-        "keep_alive": os.getenv("KEEP_ALIVE", "30m"), "options": {"num_ctx": num_ctx},
+        "keep_alive": os.getenv("KEEP_ALIVE", "30m"), "options": options,
     }
     acc, shown, noted, final = "", 0, False, {}
     t0 = time.time()
@@ -131,7 +136,7 @@ def main() -> None:
     try:
         h = gw.check()
         print(f"VPS ok (v{h.get('version')}, rss {h.get('rss_mb')} MB, dim {h.get('embed_dim')}) | "
-              f"scope={gw.scope} all={gw.all_scopes} project={gw.project_id} | think={'on' if think else 'off'} ctx={num_ctx}")
+              f"scope={gw.scope} all={gw.all_scopes} project={gw.project_id} | think={'on' if think else 'off'} ctx={num_ctx} gpu_layers={os.getenv('NUM_GPU') or 'auto'}")
     except GatewayError as exc:
         print("STARTUP CHECK FAILED:", exc)
 
