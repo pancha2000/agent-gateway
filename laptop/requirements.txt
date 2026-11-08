@@ -1,0 +1,3 @@
+httpx>=0.27
+# optional: only needed to ingest LOCAL .pdf files
+pypdf>=5.0
